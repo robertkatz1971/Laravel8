@@ -58,7 +58,7 @@ class BrandController extends Controller
 
         $validated = $request->validate([
             'brand_name' => 'required|max:255',
-            'image' => 'required|mimes:jpg,jpeg,png'
+            'image' => 'mimes:jpg,jpeg,png'
         ],
         [
             'image.mimes' => 'Allowed file types are jpg, jpeg, and png.'
@@ -66,10 +66,27 @@ class BrandController extends Controller
 
         $brand = Brand::findOrFail($id);
 
-        //TODO update image
+        $oldImage = $request->old_image;
+        $brand_image = $request->file('image');
 
+        if($brand_image) {
+            if (File::exists($oldImage)) {
+                unlink($oldImage);
+            }    
+            $unique_name = hexdec(uniqid());
+            $extension = strtolower($brand_image->getClientOriginalExtension());
+
+            $filename = $unique_name . '.' . $extension;
+
+            $upLocation = 'image/brand/';
+            $lastImage = $upLocation . $filename;
+
+            $brand_image->move($upLocation, $filename);
+        }
+        
         $brand->update([
-            'brand' => $request->brand_name,
+            'brand_name' => $request->brand_name,
+            'image' => $brand_image? $lastImage : $oldImage,
             'user_id' => Auth::user()->id
         ]);
 
@@ -94,7 +111,7 @@ class BrandController extends Controller
 
         $brand = Brand::onlyTrashed()->find($id);
 
-        if(file_exists($brand->image)) {
+        if(File::exists($brand->image)) {
             File::delete($brand->image);
         }
 
